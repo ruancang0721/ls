@@ -152,7 +152,7 @@ void lsprint(filei *file,Options* opts)
     mode[0]='\0';
     modescore(mode,file->st.st_mode);
     printf(" %s",mode);
-    printf("%2ld",file->st.st_nlink);
+    printf("%2ld ",file->st.st_nlink);
     struct passwd * UID =getpwuid(file->st.st_uid);
     if(UID==NULL)
     {
