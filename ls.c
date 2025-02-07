@@ -154,7 +154,16 @@ void lsprint(filei *file,Options* opts)
     printf("%s",mode);
     printf("%2ld",file->st.st_nlink);
     struct passwd * UID =getpwuid(file->st.st_uid);
+    if(UID==NULL)
+    {
+      return;
+    }
+
     struct group * GID =getgrgid(file->st.st_gid);
+    if(GID==NULL)
+    {
+      return;
+    }
     printf(" %s %s",UID->pw_name,GID->gr_name);
     printf("%6ld",file->st.st_size);
   struct tm* timeinfo = localtime(&file->st.st_mtime);
