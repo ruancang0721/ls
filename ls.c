@@ -10,6 +10,7 @@
 #include<pwd.h>
 #include<grp.h>
 #include<time.h>
+#define MAX 1024
 typedef struct{
   int a;
   int l;
@@ -20,8 +21,8 @@ typedef struct{
   int s;
 }Options;
 typedef struct{
-  char* name;
-  char* fpath;
+  char name[1024];
+  char fpath[1024];
   struct stat st;
 }filei;
 int comparetime1(const void*a,const void*b)
@@ -184,33 +185,19 @@ void lsprint(filei *file,Options* opts)
 void ls(char* path,Options* opts,int re);
  void process(char * path,Options* opts,int re)
  {
-  DIR* dir = opendir(path);
-  if(dir==NULL)
-  {
-    perror("opendir error");
-    return;
-  }
+
    struct stat st;
-   if(stat(path,&st)==-1)
+   if(lstat(path,&st)==-1)
    {
     perror("stat error");
     return;
    }
-   if(!S_ISDIR(st.st_mode))
-   {
-    filei file;
-    file.name = path;
-    file.st = st;
-    lsprint(&file,opts);
-    return;
-    
+if(S_ISDIR(st.st_mode))
+{
+  printf("%s:\n ",path);
+    ls(path,opts,1);
+}
 
-   }
-   if(re)
-   {
-   printf("\n%s:\n",path);
-   }
-   ls(path,opts,re);
 
 
  }
@@ -222,52 +209,68 @@ void ls(char* path,Options* opts,int re)
        {
         perror("opendir error");
         
-        
+         return;
        }
    
        struct dirent *ent;
         filei* files = NULL;
-        size_t count =0;
-        size_t n=0;
+        int count =0;
+        int alloc=10;
         long long totalblock=0;
+        files = malloc(alloc*sizeof(filei));
+        if(files == NULL)
+        {
+          perror("malloc error");
+          closedir(dir);
+          return;
+        }
        while((ent = readdir(dir))!=NULL)
        {
         if((opts->a!=1)&&ent->d_name[0]=='.')
         {
           continue;
         }
-        char fullpath[1024];
+        
+         if(count>=alloc)
+         {
+          alloc+=10;
+          files = realloc(files,alloc*sizeof(filei));
+         }
+         if(files == NULL)
+         {
+          perror("realloc error");
+          free(files);
+          closedir(dir);
+          return;
+         
+         }
         int len = strlen(path);
         if(path[len-1]!='/')
         {
-          snprintf(fullpath,1024,"%s/%s",path,ent->d_name);
+          snprintf(files[count].fpath,MAX,"%s/%s",path,ent->d_name);
         }
         else
         {
-            snprintf(fullpath,1024,"%s%s",path,ent->d_name);
+            snprintf(files[count].fpath,MAX,"%s%s",path,ent->d_name);
         }
         
 
-        filei file;
-        file.fpath = fullpath;
-        if(lstat(fullpath,&file.st)==-1)
+        strncpy(files[count].name,ent->d_name,MAX);
+
+           
+        if(lstat(files[count].fpath,&files[count].st)==-1)
         {
           perror("lstat error");
           continue;
         }
-        file.name = strdup(ent->d_name);
-        if(count>=n)
-        {
-          n= n?n*2:128;
-          files = realloc(files,n*sizeof(filei));
-        }
-        files[count++]=file;
-        totalblock +=file.st.st_blocks;
+         strcpy(files[count].name,ent->d_name);
+ 
+  
+        totalblock +=files[count].st.st_blocks;
+        count++;
                }
       
        closedir(dir);
-
-
               if(opts->t)
        {
         if(opts->r)
@@ -304,23 +307,11 @@ void ls(char* path,Options* opts,int re)
       {
         if(S_ISDIR(files[i].st.st_mode)&&(strcmp(files[i].name,".")!=0)&&(strcmp(files[i].name,"..")!=0))
           {
-            char newpath[1024];
-            sprintf(newpath,"%s/%s",path,files[i].name);
-            process(newpath,opts,1);
+            process(files[i].fpath,opts,1);
           }
 
       }
     }
-    for(int i=0;i<count;i++)
-    {
-      free(files[i].name);
-    }
-
-  
-
-    
-   
-
    free(files);
 
 }
